@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-)
-
-import (
 	"wwiseutil/util"
 	"wwiseutil/wwise"
 )
@@ -96,6 +93,10 @@ type ObjectHierarchySection struct {
 	// infinity.
 	loopOf      map[uint32]uint32
 	wemToObject map[uint32]*SfxVoiceSoundObject
+	// Maps music track object IDs to their track objects
+	musicTracks map[uint32]*CAkMusicTrack
+	// Maps music segment object IDs to their segment objects
+	musicSegments map[uint32]*CAkMusicSegment
 }
 
 // An UnknownSection represents an unknown section in a SoundBank file.
@@ -301,6 +302,8 @@ func (hdr *SectionHeader) NewObjectHierarchySection(sr util.ReadSeekerAt) (*Obje
 	sec.Header = hdr
 	sec.loopOf = make(map[uint32]uint32)
 	sec.wemToObject = make(map[uint32]*SfxVoiceSoundObject)
+	sec.musicTracks = make(map[uint32]*CAkMusicTrack)
+	sec.musicSegments = make(map[uint32]*CAkMusicSegment)
 
 	var count uint32
 	err := binary.Read(sr, binary.LittleEndian, &count)
@@ -326,6 +329,20 @@ func (hdr *SectionHeader) NewObjectHierarchySection(sr util.ReadSeekerAt) (*Obje
 			if obj.Structure.loops {
 				sec.loopOf[obj.WemDescriptor.WemId] = obj.Structure.loopCount
 			}
+			sec.objects = append(sec.objects, obj)
+		case musicTrackObjectId:
+			obj, err := desc.NewCAkMusicTrack(sr)
+			if err != nil {
+				return nil, err
+			}
+			sec.musicTracks[desc.ObjectId] = obj
+			sec.objects = append(sec.objects, obj)
+		case musicSegmentObjectId:
+			obj, err := desc.NewCAkMusicSegment(sr)
+			if err != nil {
+				return nil, err
+			}
+			sec.musicSegments[desc.ObjectId] = obj
 			sec.objects = append(sec.objects, obj)
 		default:
 			obj, err := desc.NewUnknownObject(sr)
@@ -369,6 +386,7 @@ func (hrc *ObjectHierarchySection) String() string {
 
 	fmt.Fprintf(b, "%s: len(%d) object_count(%d) \n",
 		hrc.Header.Identifier, hrc.Header.Length, hrc.ObjectCount)
+
 	return b.String()
 }
 

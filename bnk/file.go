@@ -3,15 +3,11 @@ package bnk
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"math"
 	"os"
 	"strings"
-)
-
-import (
 	"wwiseutil/util"
 	"wwiseutil/wwise"
 )
@@ -95,10 +91,6 @@ func NewFile(r io.ReaderAt) (*File, error) {
 			}
 			bnk.sections = append(bnk.sections, sec)
 		}
-	}
-
-	if bnk.DataSection == nil || len(bnk.Wems()) == 0 {
-		return nil, errors.New("There are no wems stored within this file.")
 	}
 
 	return bnk, nil

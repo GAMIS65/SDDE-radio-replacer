@@ -35,7 +35,7 @@ type InfiniteReaderAt struct {
 
 // ReadAt fills all of len(p) bytes with the Value of this InfiniteReaderAt.
 func (r *InfiniteReaderAt) ReadAt(p []byte, off int64) (int, error) {
-	for i, _ := range p {
+	for i := range p {
 		p[i] = r.Value
 	}
 	return len(p), nil

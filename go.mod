@@ -1,10 +1,7 @@
 module wwiseutil
 
-go 1.17
+go 1.23
 
-require (
-	github.com/hpxro7/wwiseutil v0.0.0-20181017071856-1e223f906bdd
-	github.com/therecipe/qt v0.0.0-20200904063919-c0c124a5770d
-)
+toolchain go1.24.0
 
-require github.com/gopherjs/gopherjs v0.0.0-20190411002643-bd77b112433e // indirect
+require github.com/hpxro7/wwiseutil v0.0.0-20181017071856-1e223f906bdd

@@ -1,103 +1,295 @@
-# wwiseutil-SDDE
+# Sleeping Dogs Radio Song Replacer
 
-[Read in Chinese (中文说明)](README.zh-CN.md)
+This tool allows you to replace the songs on the radio stations in **Sleeping Dogs: Definitive Edition**.
 
-This is a command-line tool for Wwise audio packages (`.pck` and `.bnk` files), specifically customized to provide **file replacement** and **repacking** functionality for the `.pck` file format used in **Sleeping Dogs: Definitive Edition**.
+---
 
-This project is a fork and improvement of [hpxro7/wwiseutil](https://github.com/hpxro7/wwiseutil). Special thanks to the original author for their work.
+## Requirements
 
-Modified and maintained by [Zinho](https://github.com/ZinhoYip).
+1. **Your music converted to `.wav` format**
+   - Convert your audio to **44100Hz, Signed 16-bit PCM, Stereo `.wav`**
+   - You can use tools such as:
+     - **Audacity**
+     - **ffmpeg** (`ffmpeg -i input.mp3 -ar 44100 -ac 2 -sample_fmt s16 output.wav`)
 
-## Core Features
+2. **Wwise 2013.2**
+   - Sleeping Dogs uses **Wwise 2013.2**, and replacement audio must be encoded with that exact version to work correctly.
+   - You can download it here:
+     https://archive.org/details/wwise-2013.2.10-windows
 
-- **Unpack Files**: Extract all embedded sub-files from `.pck` and `.bnk` archives.
-- **Inspect File Structure**: Clearly list the IDs and indices of all `.bnk` and `.wem` files within a `.pck` package using the verbose log mode.
-- **Replace and Repack (SDDE Custom)**: Replace specific files within a `.pck` package and `.bnk` package with new ones and generate a new, game-ready `.pck` file and `.bnk` file.
-- **Cross-Platform**: Built with Go, it can be easily compiled and run on Windows, macOS, and Linux.
+---
 
-## How to Use `wwiseutil_SDDE.exe`
+## Converting `.wav` Files to `.wem`
 
-You can download the latest version of `wwiseutil_SDDE.exe` from the [GitHub Releases](https://github.com/ZinhoYip/wwiseutil-SDDE/releases) page of this project.
+1. Launch **Wwise 2013.2**.
+2. Create a new project.
+3. Import your `.wav` files.
+4. In the **Project Explorer**, navigate to: ShareSets → Conversion Settings → Vorbis.
+5. Double-click **Vorbis Quality High**.
+6. Click **Edit...** next to **Windows®**.
+7. Set the following:
 
-After downloading, it is recommended to place it in an easily accessible path or add it to your system's environment variables for convenient access from any command-line location.
+- **Seek table granularity (sample frames):** `1024`
 
-### 1. Inspect `.pck` Package Contents (Preparation for File Replacement)
+8. Click **OK**, then click **Convert...**
+9. Your `.wem` files will be output to: `<your project folder>/.cache/Windows/SFX/`
+10. Rename your `.wem` files to match the **song IDs** you are replacing.
 
-Before replacing files, you **must** know the index of each file inside the package. Using the `-v` (verbose) parameter generates a `log.txt` file containing detailed information about all files.
+## Replacing the Songs
 
-**Command Format:**
-```bash
-wwiseutil_SDDE.exe -f "<path_to_source.pck>" -v -u -o "<any_temporary_output_dir>"
-```
+1. Go to your Sleeping Dogs installation directory.
+2. Navigate to: `/data/Audio/SD2/`
+3. Create a folder for your replacements and place all renamed `.wem` files in that folder.
+4. Run the replacer tool: `replacer.exe -f SFX.pck -t replacements -o new_SFX.pck`
 
-**Example:**
-```bash
-# This will generate a log.txt file in the same directory as the program
-wwiseutil_SDDE.exe -f "C:\SDDE\Data\Audio\SD2\sfx.pck" -v -u -o "F:\temp_unpack_output"
-```
+Where:
+| Option | Meaning |
+|--------|---------|
+| `-f SFX.pck` | The original audio pack from the game |
+| `-t replacements` | Directory containing your `.wem` files |
+| `-o new_SFX.pck` | Output file with your custom songs |
 
-Open `log.txt`, and you will see content similar to the following. Take note of the **Index** of the file you want to replace.
+5. **Back up your original** `SFX.pck`
+6. Replace it: new_SFX.pck → rename to → SFX.pck
 
-### 2. Unpack `.pck` or `.bnk` Files
+## Radio stations
 
-If you just want to extract all files from a package, use the `-u` (unpack) parameter.
+### Boosey & Hawkes
 
-**Command Format:**
-```bash
-wwiseutil_SDDE.exe -f "<path_to_source.pck_or.bnk>" -u -o "<output_directory>"
-```
+| ID           | Artist       | Title                                                                     |
+| ------------ | ------------ | ------------------------------------------------------------------------- |
+| `1035836851` | Tchaikovsky  | The Nutcracker March                                                      |
+| `233155423`  | Khachaturian | Sabre Dance                                                               |
+| `517691373`  | Offenbach    | Orpheus in the Underworld, Act II: Can-Can                                |
+| `414761973`  | Edvard Grieg | Morning Mood from the play Peer Gynt                                      |
+| `11795260`   | Debussy      | Suite bergamasque: III. Clair de lune                                     |
+| `415124579`  | Brahms       | Lullaby (Wiegenlied), Op. 49, No. 4                                       |
+| `437623531`  | Beethoven    | Bagatelle in A minor ‘Für Elise’                                          |
+| `989722079`  | Wagner       | Die Walkure: Ride of the Valkyries                                        |
+| `820758683`  | Shostakovich | he Gadfly Suite / Five Days – Five Nights Suite – XII. Finale             |
+| `70192315`   | Rachmaninoff | Vocalise, Op. 34, No. 14                                                  |
+| `882187216`  | Pachelbel    | Canon                                                                     |
+| `797274795`  | Mozart       | Piano Sonata No. 11 in A major, K. 331: III. Rondo alla turca: Allegretto |
+| `752488945`  | Handel       | Messiah (Choruses) – Hallelujah                                           |
+| `754242689`  | Bach         | Orchestral Suite No. 3 in D major, BWV 1068: II. Air, “Air on a G String” |
+| `25478506`   | Verdi        | Rigoletto, Act III: La donna è mobile                                     |
 
-**Example:**
-```bash
-# Unpack a PCK file
-wwiseutil_SDDE.exe -f "C:\SDDE\Data\Audio\SD2\sfx.pck" -u -o "C:\unpacked_pck_files"
+### Daptone Radio
 
-# Unpack a BNK file
-wwiseutil_SDDE.exe -f "C:\SDDE\Data\Audio\135561656.bnk" -u -o "C:\unpacked_bnk_files"
-```
+| ID          | Artist          | Title                                        |
+| ----------- | --------------- | -------------------------------------------- |
+| `714775338` |                 |                                              |
+| `818423379` |                 |                                              |
+| `815263223` |                 |                                              |
+| `288288967` |                 |                                              |
+| `640562369` |                 |                                              |
+| `271053776` |                 |                                              |
+| `841884139` |                 |                                              |
+| `42868061`  |                 |                                              |
+| `953563238` |                 |                                              |
+| `41136723`  |                 |                                              |
+| `716596295` |                 |                                              |
+| `345990911` |                 |                                              |
+| `8034663`   |                 |                                              |
+| `283222090` | Charles Bradley | This Love Ain’t Big Enough for the Two of Us |
+| `347445644` |                 |                                              |
 
-### 3. Replace Files in a `.pck` (Core Feature)
+### Softly Radio
 
-This is the core feature customized for SDDE. Please follow these steps strictly.
+| ID          | Artist              | Title         |
+| ----------- | ------------------- | ------------- |
+| `622753165` | Bei Bei & Shawn Lee | East          |
+| `935324680` | Bei Bei & Shawn Lee | Hot Thursday  |
+| `153030135` | Bei Bei & Shawn Lee | Into the Wind |
+| `941230234` |                     |               |
+| `101952233` |                     |               |
+| `652411807` |                     |               |
+| `207849330` |                     |               |
+| `241881013` |                     |               |
+| `481578451` |                     |               |
+| `125962848` |                     |               |
+| `140059496` |                     |               |
+| `258199652` |                     |               |
+| `794864812` |                     |               |
+| `547919333` |                     |               |
+| `922951351` |                     |               |
+| `582140120` |                     |               |
+| `149910693` |                     |               |
+| `79150297`  |                     |               |
+| `447631139` |                     |               |
+| `216857275` |                     |               |
+| `82423709`  |                     |               |
+| `306677132` |                     |               |
+| `26626127`  |                     |               |
+| `987071588` |                     |               |
+| `173659439` |                     |               |
+| `944123865` |                     |               |
+| `853284021` |                     |               |
+| `975592254` |                     |               |
+| `228832971` |                     |               |
+| `76921858`  |                     |               |
+| `26011993`  |                     |               |
+| `536695358` |                     |               |
+| `241516949` |                     |               |
+| `624036716` |                     |               |
+| `307971095` |                     |               |
+| `281972048` |                     |               |
+| `806900474` |                     |               |
+| `229580733` |                     |               |
 
-**Step 1: Prepare Replacement Files**
+### Warp Radio
 
-1.  Create a main folder to hold all your replacement files (e.g., `D:\my_replacements`).
-2.  Inside this main folder, create `bnk` and/or `wem` subfolders, depending on the type of file you are replacing.
-3.  Place the `.bnk` or `.wem` files you want to use for replacement into the corresponding subfolders.
-4.  **Crucially:** Rename these files to the **Index number** you found in Step 1.
-    -   For example, to replace `BnkIndex[1]`, rename your new bnk file to `1.bnk` and place it in the `bnk` folder.
-    -   To replace `WemIndex[5]`, rename your new wem file to `5.wem` and place it in the `wem` folder.
+| ID           | Artist        | Title    |
+| ------------ | ------------- | -------- |
+| `71468293`   |               |          |
+| `285695891`  | Africa HiTech | Lash Out |
+| `756688699`  |               |          |
+| `486816462`  |               |          |
+| `669687173`  |               |          |
+| `151555984`  |               |          |
+| `10361450`   |               |          |
+| `203525034`  |               |          |
+| `64771429`   |               |          |
+| `1013348789` |               |          |
+| `519922173`  |               |          |
+| `641371525`  |               |          |
+| `895845900`  |               |          |
+| `860265115`  |               |
+| `883002255`  |               |          |
+| `731977943`  |               |          |
+| `17700560`   |               |          |
+| `704417318`  |               |          |
+| `934384691`  |               |          |
 
-**Directory Structure Example:**
-```
-D:\my_replacements\
-├───bnk\
-│   └───1.bnk
-└───wem\
-    └───5.wem
-```
+### Ninja Tuna Radio
 
-**Step 2: Execute the Replace Command**
+| ID          | Artist | Title |
+| ----------- | ------ | ----- |
+| `28462829`  |        |       |
+| `66320576`  |        |       |
+| `906315897` | Bonobo | Kiara |
+| `621641940` |        |       |
+| `241297753` |        |       |
+| `664950307` |        |       |
+| `234941887` |        |       |
+| `239024824` |        |       |
+| `182429299` |        |       |
+| `409081372` |        |       |
+| `731679828` |        |       |
+| `421052977` |        |       |
+| `405300075` |        |       |
+| `306295686` |        |       |
+| `585648168` |        |       |
+| `461101014` |        |       |
+| `642310041` |        |       |
+| `529411208` |        |       |
+| `341244601` |        |       |
+| `396657866` |        |       |
 
-Use the `-r` (replace) parameter, providing the source file, the replacement directory, and the path for the new output file.
+### H-Klub Radio
 
-**Command Format:**
-```bash
-wwiseutil_SDDE.exe -f "<path_to_source.pck>" -r -t "<your_main_replacement_dir>" -o "<path_for_newly_generated.pck>"
-```
+| ID          | Artist | Title |
+| ----------- | ------ | ----- |
+| `198543761` |        |       |
+| `759776786` |        |       |
+| `751151192` |        |       |
+| `249635153` |        |       |
+| `65354999`  |        |       |
+| `206432563` |        |       |
+| `255500584` |        |       |
+| `622161138` |        |       |
+| `803206285` |        |       |
+| `785509598` |        |       |
+| `421091422` |        |       |
+| `63805603`  |        |       |
+| `215466551` |        |       |
+| `283634792` |        |       |
+| `403668441` |        |       |
+| `379924086` |        |       |
+| `506526332` |        |       |
 
-**Example:**
-```bash
-wwiseutil_SDDE.exe -f "C:\SDDE\Data\Audio\SD2\sfx.pck" -r -t "D:\my_replacements" -o "C:\SDDE\Data\Audio\SD2\sfx_new.pck"
-```
+### Kerrang! Radio
 
-After the command completes successfully, `sfx_new.pck` is the new file containing your modified content. You can rename it back to `sfx.pck` and replace the original game file to test it.
+| ID          | Artist         | Title            |
+| ----------- | -------------- | ---------------- |
+| `339841295` | Animal Kingdom | Get Away With It |
+| `239192466` |                |                  |
+| `507978427` |                |                  |
+| `68149590`  |                |                  |
+| `454645781` |                |                  |
+| `720728071` |                |                  |
+| `172332623` |                |                  |
+| `544450863` |                |                  |
+| `438876933` |                |                  |
+| `731459862` |                |                  |
+| `547178483` |                |                  |
+| `958160664` |                |                  |
+| `133821945` |                |                  |
+| `743732539` |                |                  |
+| `83592991`  |                |                  |
+| `841758129` |                |                  |
+| `345237391` |                |                  |
+| `168643679` |                |                  |
+| `309950624` |                |                  |
+| `193527120` |                |                  |
 
-## Acknowledgments
+### Sagittarius FM
 
--   Thanks to **hpxro7** for creating the original [wwiseutil](https://github.com/hpxro7/wwiseutil).
+| ID           | Artist            | Title                 |
+| ------------ | ----------------- | --------------------- |
+| `887359693`  | Climax Blues Band | Couldn’t Get it Right |
+| `924397233`  |                   |                       |
+| `516605372`  |                   |                       |
+| `172131873`  |                   |                       |
+| `447148372`  |                   |                       |
+| `679069746`  |                   |                       |
+| `299179807`  |                   |                       |
+| `1044093422` |                   |                       |
+| `220766727`  |                   |                       |
+| `423003502`  |                   |                       |
+| `555831153`  |                   |                       |
+| `479677429`  |                   |                       |
+| `37782963`   |                   |                       |
+| `615133034`  |                   |
 
-## License
+### Roadrunner Records
 
-This project is licensed under the GNU General Public License v3.0. See the `LICENSE` file for details.
+| ID           | Artist | Title |
+| ------------ | ------ | ----- |
+| `347608615`  |        |       |
+| `1033051382` |        |       |
+| `713642521`  |        |       |
+| `643230639`  |        |       |
+| `101167119`  |        |       |
+| `425185674`  |        |       |
+| `1014785108` |        |       |
+| `427737063`  |        |       |
+| `367770460`  |        |       |
+| `101160181`  |        |       |
+| `75278522`   |        |       |
+| `415119689`  |        |       |
+| `625245472`  |        |       |
+| `621142893`  |        |       |
+| `583322465`  |        |       |
+
+### Real FM
+
+| ID           | Artist | Title |
+| ------------ | ------ | ----- |
+| `1031166622` |        |       |
+| `501528023`  |        |       |
+| `513380233`  |        |       |
+| `531212375`  |        |       |
+| `133914539`  |        |       |
+| `18038500`   |        |       |
+| `1068598042` |        |       |
+| `285526788`  |        |       |
+| `217355793`  |        |       |
+| `26526930`   |        |       |
+| `489793766`  |        |       |
+| `783175834`  |        |       |
+| `588421527`  |        |       |
+| `51782487`   |        |       |
+| `298683518`  |        |       |
+| `397484266`  |        |       |
+| `107505628`  |        |       |

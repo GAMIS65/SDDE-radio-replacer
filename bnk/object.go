@@ -4,9 +4,7 @@ package bnk
 import (
 	"encoding/binary"
 	"io"
-)
 
-import (
 	"github.com/hpxro7/wwiseutil/util"
 )
 
@@ -24,13 +22,20 @@ const PARAMETER_TYPE_BYTES = 1
 const PARAMETER_VALUE_BYTES = 4
 const STRUCTURE_UNKNOWN_BYTES = 10
 
+// Value offsets
+const TRACK_SRC_DURATION_OFFSET = 0x42
+const TRACK_SOURCEID_OFFSET = 0x26
+
+const SEGMENT_DURATION_OFFSET = 0x56
+const SEGMENT_END_POSITION_OFFSET = 0x76
+const SEGMENT_CHILD_ID_OFFSET = 0x37
+
 const parameterLoopType = 0x3A
 
 // The identifier for SFX or Voice sound objects.
 const soundObjectId = 0x02
-
-// The wem is embedded in this sound file.
-const streamSettingEmbedded = 0x00
+const musicTrackObjectId = 0x0B
+const musicSegmentObjectId = 0x0A
 
 // Object represents a single object within the HIRC section.
 type Object interface {
@@ -107,6 +112,18 @@ type Effect struct {
 	Index   byte
 	Id      uint32
 	Padding [2]byte
+}
+
+type CAkMusicTrack struct {
+	Descriptor *ObjectDescriptor
+	// Data buffer for the track object
+	Data []byte
+}
+
+type CAkMusicSegment struct {
+	Descriptor *ObjectDescriptor
+	// Data buffer for the segment object
+	Data []byte
 }
 
 // NewSfxVoiceSoundObject creates a new SfxVoiceSoundObject, reading from sr,
@@ -193,6 +210,34 @@ func (desc *ObjectDescriptor) NewUnknownObject(sr util.ReadSeekerAt) (*UnknownOb
 	r := util.NewResettingReader(sr, dataOffset, dataLength)
 	sr.Seek(dataLength, io.SeekCurrent)
 	return &UnknownObject{desc, r}, nil
+}
+
+// NewCAkMusicTrack creates a new CAkMusicTrack, reading from sr, which must
+// be seeked to the start of the track object's data.
+func (desc *ObjectDescriptor) NewCAkMusicTrack(sr util.ReadSeekerAt) (*CAkMusicTrack, error) {
+	// The descriptor length includes the Object ID, which has already been
+	// written. Remove this from the remaining length
+	dataLength := int64(desc.Length) - OBJECT_DESCRIPTOR_ID_BYTES
+	data := make([]byte, dataLength)
+	_, err := io.ReadFull(sr, data)
+	if err != nil {
+		return nil, err
+	}
+	return &CAkMusicTrack{desc, data}, nil
+}
+
+// NewCAkMusicSegment creates a new CAkMusicSegment, reading from sr, which must
+// be seeked to the start of the segment object's data.
+func (desc *ObjectDescriptor) NewCAkMusicSegment(sr util.ReadSeekerAt) (*CAkMusicSegment, error) {
+	// The descriptor length includes the Object ID, which has already been
+	// written. Remove this from the remaining length
+	dataLength := int64(desc.Length) - OBJECT_DESCRIPTOR_ID_BYTES
+	data := make([]byte, dataLength)
+	_, err := io.ReadFull(sr, data)
+	if err != nil {
+		return nil, err
+	}
+	return &CAkMusicSegment{desc, data}, nil
 }
 
 // WriteTo writes the full contents of this UnknownObject to the Writer
@@ -379,4 +424,40 @@ func (e *EffectContainer) WriteTo(w io.Writer) (written int64, err error) {
 		}
 	}
 	return
+}
+
+// WriteTo writes the full contents of this CAkMusicTrack to the Writer
+// specified by w.
+func (track *CAkMusicTrack) WriteTo(w io.Writer) (written int64, err error) {
+	err = binary.Write(w, binary.LittleEndian, track.Descriptor)
+	if err != nil {
+		return
+	}
+	written = int64(OBJECT_DESCRIPTOR_BYTES)
+
+	n, err := w.Write(track.Data)
+	if err != nil {
+		return written, err
+	}
+	written += int64(n)
+
+	return written, nil
+}
+
+// WriteTo writes the full contents of this CAkMusicSegment to the Writer
+// specified by w.
+func (segment *CAkMusicSegment) WriteTo(w io.Writer) (written int64, err error) {
+	err = binary.Write(w, binary.LittleEndian, segment.Descriptor)
+	if err != nil {
+		return
+	}
+	written = int64(OBJECT_DESCRIPTOR_BYTES)
+
+	n, err := w.Write(segment.Data)
+	if err != nil {
+		return written, err
+	}
+	written += int64(n)
+
+	return written, nil
 }

@@ -13,6 +13,7 @@ import (
 
 	"wwiseutil/bnk"
 	"wwiseutil/pck"
+	"wwiseutil/util"
 	"wwiseutil/wwise"
 )
 
@@ -28,11 +29,13 @@ func main() {
 	flag.StringVar(&targetFlag, "t", "", "(shorthand for -target)")
 	flag.StringVar(&targetFlag, "target", "", "Directory containing replacement files.")
 
-	var unpackFlag, replaceFlag, verboseFlag bool
+	var unpackFlag, replaceFlag, updateDurationsFlag, verboseFlag bool
 	flag.BoolVar(&unpackFlag, "u", false, "(shorthand for -unpack)")
 	flag.BoolVar(&unpackFlag, "unpack", false, "Unpack a .bnk or .pck into separate files.")
 	flag.BoolVar(&replaceFlag, "r", false, "(shorthand for -replace)")
 	flag.BoolVar(&replaceFlag, "replace", false, "Replace files in a source .pck or .bnk.")
+	flag.BoolVar(&updateDurationsFlag, "d", false, "(shorthand for -update-durations)")
+	flag.BoolVar(&updateDurationsFlag, "update-durations", false, "Update track and segment durations in a BNK file from WAV files.")
 	flag.BoolVar(&verboseFlag, "v", false, "(shorthand for -verbose)")
 	flag.BoolVar(&verboseFlag, "verbose", false, "Show additional information about the parsed file.")
 
@@ -63,8 +66,20 @@ func main() {
 			return
 		}
 		handleReplace(filepathFlag, outputFlag, targetFlag, verboseFlag)
+	} else if updateDurationsFlag {
+		if outputFlag == "" {
+			log.Println("Error: -output (-o) is required for updating durations.")
+			flag.Usage()
+			return
+		}
+		if targetFlag == "" {
+			log.Println("Error: -target (-t) is required for updating durations.")
+			flag.Usage()
+			return
+		}
+		handleUpdateDurations(filepathFlag, outputFlag, targetFlag, verboseFlag)
 	} else {
-		log.Println("No operation specified. Use -unpack or -replace.")
+		log.Println("No operation specified. Use -unpack, -replace, or -update-durations.")
 		flag.Usage()
 	}
 }
@@ -378,4 +393,124 @@ func findBnkReplacementFiles(targetDir string, srcBnk *bnk.File) ([]*wwise.Repla
 	}
 
 	return replacements, nil
+}
+
+func handleUpdateDurations(inputFile, outputFile, targetDir string, verbose bool) {
+	srcBnk, err := bnk.Open(inputFile)
+	if err != nil {
+		log.Fatalf("Error opening source BNK: %v", err)
+	}
+	defer srcBnk.Close()
+
+	if verbose {
+		log.Println("Source file structure:")
+		log.Println(srcBnk.String())
+	}
+
+	// Load WAV files from target directory
+	wavFiles, err := findWAVFiles(targetDir)
+	if err != nil {
+		log.Fatalf("Error finding WAV files: %v", err)
+	}
+
+	if len(wavFiles) == 0 {
+		log.Println("No WAV files found in target directory. Nothing to do.")
+		return
+	}
+
+	log.Printf("Found %d WAV file(s) to process", len(wavFiles))
+
+	// Process each WAV file
+	successCount := 0
+	for wavID, wavPath := range wavFiles {
+		wavFile, err := os.Open(wavPath)
+		if err != nil {
+			log.Printf("Warning: could not open WAV file %s: %v", wavPath, err)
+			continue
+		}
+
+		// Extract duration from WAV file
+		duration, err := util.WAVDuration(wavFile)
+		wavFile.Close()
+		if err != nil {
+			log.Printf("Warning: could not extract duration from %s: %v", filepath.Base(wavPath), err)
+			continue
+		}
+
+		log.Printf("Processing %s: duration = %d ms", filepath.Base(wavPath), duration)
+
+		// Find and update the track with matching source ID
+		if trackID, found := srcBnk.ObjectSection.FindTrackIDBySourceID(wavID); found {
+			if srcBnk.ObjectSection.UpdateTrackDurationBySourceID(wavID, duration, int(bnk.TRACK_SOURCEID_OFFSET-bnk.OBJECT_DESCRIPTOR_BYTES)) {
+				log.Printf("Updated track %d duration to %d ms", trackID, duration)
+
+				// Now find and update the segment that references this track
+				if srcBnk.ObjectSection.UpdateSegmentDurationByChildID(trackID, duration) {
+					log.Printf("Updated segment duration for track %d to %d ms", trackID, duration)
+					successCount++
+				} else {
+					log.Printf("Warning: could not find segment for track %d", trackID)
+				}
+			} else {
+				log.Printf("Warning: could not update duration for track %d", trackID)
+			}
+		} else {
+			log.Printf("Warning: could not find track with source ID %d", wavID)
+		}
+	}
+
+	if successCount == 0 {
+		log.Println("No durations were updated. Check your WAV file IDs and BNK structure.")
+		return
+	}
+
+	// Write the modified BNK to output file
+	outFile, err := os.Create(outputFile)
+	if err != nil {
+		log.Fatalf("Error creating output file: %v", err)
+	}
+	defer outFile.Close()
+
+	bytesWritten, err := srcBnk.WriteTo(outFile)
+	if err != nil {
+		log.Fatalf("Error writing to output file: %v", err)
+	}
+
+	log.Println("Duration update completed successfully!")
+	log.Printf("Output file written to: %s", outputFile)
+	log.Printf("Wrote %d bytes in total", bytesWritten)
+}
+
+func findWAVFiles(targetDir string) (map[uint32]string, error) {
+	wavFiles := make(map[uint32]string)
+
+	err := filepath.WalkDir(targetDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() {
+			base := filepath.Base(path)
+			ext := filepath.Ext(base)
+			if strings.ToLower(ext) != ".wav" {
+				return nil
+			}
+
+			// Extract ID from filename (without extension)
+			idStr := strings.TrimSuffix(base, ext)
+			id, err := strconv.ParseUint(idStr, 10, 32)
+			if err != nil {
+				log.Printf("Warning: could not parse ID from filename %s, skipping.", base)
+				return nil
+			}
+
+			wavFiles[uint32(id)] = path
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error scanning target directory: %w", err)
+	}
+
+	return wavFiles, nil
 }
